@@ -1,10 +1,12 @@
 'use client'
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const NetworkVisualization = () => {
   const [activeTab, setActiveTab] = useState('dns');
   const [activeStep, setActiveStep] = useState(null);
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const dnsSteps = [
     {
@@ -144,28 +146,63 @@ const NetworkVisualization = () => {
   const resetAnimation = () => {
     setActiveStep(null);
     setCompletedSteps([]);
+    setIsAnimating(false);
   };
 
-  const playAnimation = () => {
+  const playAnimation = async () => {
     resetAnimation();
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < currentSteps.length) {
-        handleStepClick(currentSteps[i].id);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 1000);
+    setIsAnimating(true);
+    
+    for (let i = 0; i < currentSteps.length; i++) {
+      handleStepClick(currentSteps[i].id);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    setIsAnimating(false);
+  };
+
+  const tabVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
+  const stepVariants = {
+    inactive: { opacity: 0.6, scale: 0.98 },
+    active: { opacity: 1, scale: 1 },
+    completed: { opacity: 1, scale: 1 }
+  };
+
+  const iconVariants = {
+    inactive: { scale: 1, backgroundColor: "#ffffff", color: "#3b82f6", borderColor: "#93c5fd" },
+    active: { scale: 1.1, backgroundColor: "#2563eb", color: "#ffffff", borderColor: "#2563eb" },
+    completed: { scale: 1, backgroundColor: "#3b82f6", color: "#ffffff", borderColor: "#3b82f6" }
+  };
+
+  const contentVariants = {
+    hidden: { opacity: 0, height: 0 },
+    visible: { opacity: 1, height: "auto" }
   };
 
   return (
-    <div className="min-h-screen small bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">Network Process Visualizer</h1>
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2"
+        >
+          Network Process Visualizer
+        </motion.h1>
         
         {/* Tabs */}
-        <div className="flex justify-center mb-8">
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={tabVariants}
+          transition={{ duration: 0.5 }}
+          className="flex justify-center mb-8"
+        >
           <div className="inline-flex rounded-md shadow-sm">
             <button
               onClick={() => { setActiveTab('dns'); resetAnimation(); }}
@@ -180,137 +217,233 @@ const NetworkVisualization = () => {
               HTTP Workflow
             </button>
           </div>
-        </div>
+        </motion.div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Column - Timeline */}
           <div className="lg:w-1/2">
-            <div className="bg-white rounded-xl shadow-md p-6 h-full">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-white rounded-xl shadow-md p-6 h-full"
+            >
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
                 {activeTab === 'dns' ? 'DNS Resolution Steps' : 'HTTP Request Flow'}
               </h2>
               <div className="relative">
                 {/* Timeline line */}
-                <div className="absolute left-8 h-full w-1 bg-blue-300 transform -translate-x-1/2 top-0"></div>
+                <motion.div 
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={{ duration: 0.8 }}
+                  className="absolute left-8 h-full w-1 bg-blue-300 transform -translate-x-1/2 top-0 origin-top"
+                ></motion.div>
                 
                 {/* Steps */}
                 <div className="space-y-6">
                   {currentSteps.map((step) => (
-                    <div 
+                    <motion.div 
                       key={step.id}
-                      className={`relative flex items-start transition-all duration-300 ${completedSteps.includes(step.id) ? 'opacity-100' : 'opacity-60'}`}
-                      onClick={() => handleStepClick(step.id)}
+                      initial="inactive"
+                      animate={
+                        activeStep === step.id ? "active" : 
+                        completedSteps.includes(step.id) ? "completed" : "inactive"
+                      }
+                      variants={stepVariants}
+                      transition={{ duration: 0.3 }}
+                      className="relative flex items-start"
+                      onClick={() => !isAnimating && handleStepClick(step.id)}
                     >
                       {/* Step icon */}
-                      <div className={`flex items-center justify-center w-12 h-12 rounded-full text-xl z-10 
-                        ${activeStep === step.id ? 'bg-blue-600 text-white scale-110 shadow-lg' : 
-                          completedSteps.includes(step.id) ? 'bg-blue-500 text-white' : 'bg-white text-blue-500 border border-blue-300'}
-                        transition-all duration-300 cursor-pointer`}>
+                      <motion.div 
+                        variants={iconVariants}
+                        transition={{ duration: 0.3 }}
+                        className={`flex items-center justify-center w-12 h-12 rounded-full text-xl z-10 border-2 cursor-pointer`}
+                      >
                         {step.icon}
-                      </div>
+                      </motion.div>
                       
                       {/* Step content */}
-                      <div className={`ml-4 p-3 rounded-lg flex-1 
-                        ${activeStep === step.id ? 'bg-blue-50 shadow-sm border-l-4 border-blue-500' : 'bg-gray-50'}`}>
+                      <motion.div 
+                        className={`ml-4 p-3 rounded-lg flex-1 
+                          ${activeStep === step.id ? 'bg-blue-50 shadow-sm border-l-4 border-blue-500' : 'bg-gray-50'}`}
+                        whileHover={{ scale: 1.01 }}
+                      >
                         <h3 className="font-bold text-base text-gray-800">{step.title}</h3>
                         <p className="text-gray-600 text-sm mt-1">{step.description}</p>
-                        {activeStep === step.id && (
-                          <div className="mt-2 text-blue-700 text-xs animate-pulse">
-                            {activeTab === 'dns' ? 
-                              (step.id === 1 ? "Checking local cache..." :
-                               step.id === 2 ? "Contacting ISP resolver..." :
-                               step.id === 3 ? "Querying root server..." :
-                               step.id === 4 ? "Getting TLD information..." :
-                               step.id === 5 ? "Fetching authoritative record..." :
-                               "Returning IP to browser...") :
-                              (step.id === 1 ? "Establishing TCP connection..." :
-                               step.id === 2 ? "Sending HTTP request..." :
-                               step.id === 3 ? "Processing on server..." :
-                               step.id === 4 ? "Generating response..." :
-                               step.id === 5 ? "Rendering content..." :
-                               "Closing connection...")
-                            }
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                        <AnimatePresence>
+                          {activeStep === step.id && (
+                            <motion.div 
+                              initial="hidden"
+                              animate="visible"
+                              exit="hidden"
+                              variants={contentVariants}
+                              className="mt-2 text-blue-700 text-xs"
+                            >
+                              {activeTab === 'dns' ? 
+                                (step.id === 1 ? "Checking local cache..." :
+                                 step.id === 2 ? "Contacting ISP resolver..." :
+                                 step.id === 3 ? "Querying root server..." :
+                                 step.id === 4 ? "Getting TLD information..." :
+                                 step.id === 5 ? "Fetching authoritative record..." :
+                                 "Returning IP to browser...") :
+                                (step.id === 1 ? "Establishing TCP connection..." :
+                                 step.id === 2 ? "Sending HTTP request..." :
+                                 step.id === 3 ? "Processing on server..." :
+                                 step.id === 4 ? "Generating response..." :
+                                 step.id === 5 ? "Rendering content..." :
+                                 "Closing connection...")
+                              }
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex justify-center mt-8 space-x-4">
+              <motion.div 
+                className="flex justify-center mt-8 space-x-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
                 <button 
                   onClick={resetAnimation}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm"
+                  disabled={isAnimating}
                 >
                   Reset
                 </button>
                 <button 
                   onClick={playAnimation}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+                  disabled={isAnimating}
                 >
-                  Play Animation
+                  {isAnimating ? "Playing..." : "Play Animation"}
                 </button>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* Right Column - Details */}
           <div className="lg:w-1/2">
-            <div className="bg-white rounded-xl shadow-md p-6 h-full sticky top-4">
-              {activeStep ? (
-                <>
-                  <h3 className="font-bold text-xl text-gray-800 mb-4">
-                    Step {activeStep}: {currentSteps.find(step => step.id === activeStep).title}
-                  </h3>
-                  <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-gray-700">
-                      {currentSteps.find(step => step.id === activeStep).details}
-                    </p>
-                  </div>
-                  <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
-                    <h4 className="font-semibold text-yellow-800 mb-2">Technical Insight</h4>
-                    <p className="text-yellow-700 text-sm">
-                      {currentSteps.find(step => step.id === activeStep).techNote}
-                    </p>
-                  </div>
-                  <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-600 rounded-lg">
-                    <h4 className="font-semibold text-green-800 mb-2">Simple Explanation</h4>
-                    <p className="text-green-700 text-sm">
-                      {currentSteps.find(step => step.id === activeStep).simpleExplanation}
-                    </p>
-                    <h4 className="font-semibold text-green-800 mt-4 mb-2">Real-Life Example</h4>
-                    <p className="text-green-700 text-sm">
-                      {currentSteps.find(step => step.id === activeStep).realLifeExample}
-                    </p>
-                  </div>
-                  {activeStep === currentSteps.length && (
-                    <div className="mt-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
-                      <h4 className="font-semibold text-green-800 mb-2">Process Complete</h4>
-                      <p className="text-green-700">
-                        {activeTab === 'dns' ? 
-                          "The domain has been resolved to an IP address and the browser can now establish a connection." :
-                          "The webpage has finished loading and is now interactive."}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-white rounded-xl shadow-md p-6 h-full sticky top-4"
+            >
+              <AnimatePresence mode="wait">
+                {activeStep ? (
+                  <motion.div
+                    key={`detail-${activeStep}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <h3 className="font-bold text-xl text-gray-800 mb-4">
+                      Step {activeStep}: {currentSteps.find(step => step.id === activeStep).title}
+                    </h3>
+                    <motion.div 
+                      className="mb-6 p-4 bg-blue-50 rounded-lg"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <p className="text-gray-700">
+                        {currentSteps.find(step => step.id === activeStep).details}
                       </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="text-5xl mb-4">
-                    {activeTab === 'dns' ? '🌐' : '📡'}
-                  </div>
-                  <h3 className="text-xl font-medium text-gray-500 mb-2">
-                    {activeTab === 'dns' ? 'DNS Resolution Visualizer' : 'HTTP Workflow Visualizer'}
-                  </h3>
-                  <p className="text-gray-400 max-w-md">
-                    {activeTab === 'dns' ? 
-                      "Click on any DNS resolution step or press 'Play Animation' to see how browsers find website IP addresses." :
-                      "Click on any HTTP workflow step or press 'Play Animation' to see how browsers communicate with web servers."}
-                  </p>
-                </div>
-              )}
-            </div>
+                    </motion.div>
+                    <motion.div 
+                      className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <h4 className="font-semibold text-yellow-800 mb-2">Technical Insight</h4>
+                      <p className="text-yellow-700 text-sm">
+                        {currentSteps.find(step => step.id === activeStep).techNote}
+                      </p>
+                    </motion.div>
+                    <motion.div 
+                      className="mb-6 p-4 bg-green-50 border-l-4 border-green-600 rounded-lg"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <h4 className="font-semibold text-green-800 mb-2">Simple Explanation</h4>
+                      <p className="text-green-700 text-sm">
+                        {currentSteps.find(step => step.id === activeStep).simpleExplanation}
+                      </p>
+                      <h4 className="font-semibold text-green-800 mt-4 mb-2">Real-Life Example</h4>
+                      <p className="text-green-700 text-sm">
+                        {currentSteps.find(step => step.id === activeStep).realLifeExample}
+                      </p>
+                    </motion.div>
+                    {activeStep === currentSteps.length && (
+                      <motion.div 
+                        className="mt-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        <h4 className="font-semibold text-green-800 mb-2">Process Complete</h4>
+                        <p className="text-green-700">
+                          {activeTab === 'dns' ? 
+                            "The domain has been resolved to an IP address and the browser can now establish a connection." :
+                            "The webpage has finished loading and is now interactive."}
+                        </p>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    className="flex flex-col items-center justify-center h-full text-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <motion.div 
+                      className="text-5xl mb-4"
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        rotate: [0, 5, -5, 0]
+                      }}
+                      transition={{ 
+                        duration: 2,
+                        repeat: Infinity,
+                        repeatType: "reverse"
+                      }}
+                    >
+                      {activeTab === 'dns' ? '🌐' : '📡'}
+                    </motion.div>
+                    <h3 className="text-xl font-medium text-gray-500 mb-2">
+                      {activeTab === 'dns' ? 'DNS Resolution Visualizer' : 'HTTP Workflow Visualizer'}
+                    </h3>
+                    <p className="text-gray-400 max-w-md">
+                      {activeTab === 'dns' ? 
+                        "Click on any DNS resolution step or press 'Play Animation' to see how browsers find website IP addresses." :
+                        "Click on any HTTP workflow step or press 'Play Animation' to see how browsers communicate with web servers."}
+                    </p>
+                    <motion.div 
+                      className="mt-6 w-16 h-2 bg-blue-200 rounded-full"
+                      animate={{ 
+                        scaleX: [1, 1.5, 1],
+                        opacity: [0.6, 1, 0.6]
+                      }}
+                      transition={{ 
+                        duration: 2,
+                        repeat: Infinity
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
         </div>
       </div>
