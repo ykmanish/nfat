@@ -1,0 +1,321 @@
+'use client'
+import { useState } from 'react';
+
+const NetworkVisualization = () => {
+  const [activeTab, setActiveTab] = useState('dns');
+  const [activeStep, setActiveStep] = useState(null);
+  const [completedSteps, setCompletedSteps] = useState([]);
+
+  const dnsSteps = [
+    {
+      id: 1,
+      title: "Browser Checks Cache",
+      description: "Checks local DNS cache for the domain's IP",
+      icon: "🔍",
+      details: "The browser first checks its own cache, then the OS cache, then router cache before proceeding.",
+      techNote: "DNS caching follows TTL (Time-To-Live) values set by domain owners.",
+      simpleExplanation: "The browser looks in its memory to see if it already knows the website's address.",
+      realLifeExample: "Like checking your phone's contacts to see if you already have a friend's number before asking someone else."
+    },
+    {
+      id: 2,
+      title: "Query to Recursive Resolver",
+      description: "Request sent to ISP's DNS resolver",
+      icon: "📡",
+      details: "If no local cache exists, the query goes to a recursive resolver (like 8.8.8.8 or your ISP's server).",
+      techNote: "Recursive resolvers implement DNS caching to improve performance.",
+      simpleExplanation: "If the browser doesn't know the address, it asks a helper (like your internet provider) to find it.",
+      realLifeExample: "Like asking a librarian to find a book if you can't find it on the shelf."
+    },
+    {
+      id: 3,
+      title: "Root Server Query",
+      description: "Root server directs to TLD server",
+      icon: "🌍",
+      details: "The root server (managed by ICANN) returns addresses for the appropriate TLD (.com, .org, etc.) servers.",
+      techNote: "There are 13 logical root server clusters worldwide, each replicated hundreds of times.",
+      simpleExplanation: "The helper asks a big directory to find out who knows about '.com' or '.org' websites.",
+      realLifeExample: "Like asking a city information desk which office handles '.com' businesses."
+    },
+    {
+      id: 4,
+      title: "TLD Server Response",
+      description: ".com server points to authoritative NS",
+      icon: "🔗",
+      details: "The TLD server returns the authoritative name servers for the specific domain.",
+      techNote: "TLD servers are managed by various organizations (Verisign for .com, PIR for .org, etc.)",
+      simpleExplanation: "The '.com' directory says who has the exact address for the website.",
+      realLifeExample: "Like the city office telling you which company owns a specific building."
+    },
+    {
+      id: 5,
+      title: "Authoritative Server Response",
+      description: "Domain's NS returns the IP address",
+      icon: "📌",
+      details: "The authoritative name server (like ns1.google.com) returns the actual IP address for the domain.",
+      techNote: "Authoritative servers are the ultimate source of truth for a domain's DNS records.",
+      simpleExplanation: "The website's own address book gives the final address to the browser.",
+      realLifeExample: "Like the building's owner giving you their exact street address."
+    },
+    {
+      id: 6,
+      title: "Resolver Caches & Returns IP",
+      description: "ISP resolver sends IP to browser",
+      icon: "🔙",
+      details: "The recursive resolver caches the response (following TTL rules) and returns it to your browser.",
+      techNote: "DNS responses typically include multiple IPs for load balancing.",
+      simpleExplanation: "The helper saves the address for next time and tells the browser where to go.",
+      realLifeExample: "Like the librarian writing down the book's location for you and keeping a note for others."
+    }
+  ];
+
+  const httpSteps = [
+    {
+      id: 1,
+      title: "TCP Connection",
+      description: "Browser establishes TCP connection",
+      icon: "🤝",
+      details: "Browser initiates a TCP 3-way handshake with the server (SYN, SYN-ACK, ACK).",
+      techNote: "HTTPS adds TLS handshake after TCP connection.",
+      simpleExplanation: "The browser and website shake hands to make a secure connection.",
+      realLifeExample: "Like calling a store to make sure they're open before visiting."
+    },
+    {
+      id: 2,
+      title: "HTTP Request",
+      description: "Browser sends HTTP request",
+      icon: "📨",
+      details: "Browser sends a GET request with headers (User-Agent, Accept, Cookies, etc.).",
+      techNote: "Modern browsers send HTTP/2 or HTTP/3 requests by default.",
+      simpleExplanation: "The browser asks the website for the webpage it wants to show.",
+      realLifeExample: "Like asking a waiter for the menu at a restaurant."
+    },
+    {
+      id: 3,
+      title: "Server Processing",
+      description: "Server processes the request",
+      icon: "⚙️",
+      details: "Server routes the request, executes backend code, and queries databases if needed.",
+      techNote: "Load balancers may distribute requests to multiple backend servers.",
+      simpleExplanation: "The website prepares the webpage by gathering all the needed information.",
+      realLifeExample: "Like the kitchen preparing your order after you tell the waiter what you want."
+    },
+    {
+      id: 4,
+      title: "HTTP Response",
+      description: "Server sends response back",
+      icon: "📩",
+      details: "Server sends response with status code, headers, and the requested content.",
+      techNote: "Responses include cache headers (Cache-Control, ETag) for browser caching.",
+      simpleExplanation: "The website sends the webpage back to the browser.",
+      realLifeExample: "Like the waiter bringing your food to the table."
+    },
+    {
+      id: 5,
+      title: "Browser Rendering",
+      description: "Browser processes response",
+      icon: "🖥️",
+      details: "Browser parses HTML, fetches additional resources (CSS, JS, images), and renders the page.",
+      techNote: "Modern browsers use speculative parsing to load resources faster.",
+      simpleExplanation: "The browser builds and displays the webpage on your screen.",
+      realLifeExample: "Like setting up a puzzle by putting all the pieces together to see the picture."
+    },
+    {
+      id: 6,
+      title: "Connection Closure",
+      description: "TCP connection terminates",
+      icon: "👋",
+      details: "Connection closes or persists for future requests (HTTP keep-alive).",
+      techNote: "HTTP/2 and HTTP/3 maintain persistent connections by default.",
+      simpleExplanation: "The browser and website finish talking, unless they need to talk again soon.",
+      realLifeExample: "Like hanging up the phone after your call with the store, or keeping it open for more questions."
+    }
+  ];
+
+  const currentSteps = activeTab === 'dns' ? dnsSteps : httpSteps;
+
+  const handleStepClick = (stepId) => {
+    setActiveStep(stepId);
+    if (!completedSteps.includes(stepId)) {
+      setCompletedSteps([...completedSteps, stepId]);
+    }
+  };
+
+  const resetAnimation = () => {
+    setActiveStep(null);
+    setCompletedSteps([]);
+  };
+
+  const playAnimation = () => {
+    resetAnimation();
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < currentSteps.length) {
+        handleStepClick(currentSteps[i].id);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000);
+  };
+
+  return (
+    <div className="min-h-screen small bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">Network Process Visualizer</h1>
+        
+        {/* Tabs */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-md shadow-sm">
+            <button
+              onClick={() => { setActiveTab('dns'); resetAnimation(); }}
+              className={`px-4 py-2 text-sm font-medium rounded-l-lg ${activeTab === 'dns' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+            >
+              DNS Resolution
+            </button>
+            <button
+              onClick={() => { setActiveTab('http'); resetAnimation(); }}
+              className={`px-4 py-2 text-sm font-medium rounded-r-lg ${activeTab === 'http' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+            >
+              HTTP Workflow
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Timeline */}
+          <div className="lg:w-1/2">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                {activeTab === 'dns' ? 'DNS Resolution Steps' : 'HTTP Request Flow'}
+              </h2>
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-8 h-full w-1 bg-blue-300 transform -translate-x-1/2 top-0"></div>
+                
+                {/* Steps */}
+                <div className="space-y-6">
+                  {currentSteps.map((step) => (
+                    <div 
+                      key={step.id}
+                      className={`relative flex items-start transition-all duration-300 ${completedSteps.includes(step.id) ? 'opacity-100' : 'opacity-60'}`}
+                      onClick={() => handleStepClick(step.id)}
+                    >
+                      {/* Step icon */}
+                      <div className={`flex items-center justify-center w-12 h-12 rounded-full text-xl z-10 
+                        ${activeStep === step.id ? 'bg-blue-600 text-white scale-110 shadow-lg' : 
+                          completedSteps.includes(step.id) ? 'bg-blue-500 text-white' : 'bg-white text-blue-500 border border-blue-300'}
+                        transition-all duration-300 cursor-pointer`}>
+                        {step.icon}
+                      </div>
+                      
+                      {/* Step content */}
+                      <div className={`ml-4 p-3 rounded-lg flex-1 
+                        ${activeStep === step.id ? 'bg-blue-50 shadow-sm border-l-4 border-blue-500' : 'bg-gray-50'}`}>
+                        <h3 className="font-bold text-base text-gray-800">{step.title}</h3>
+                        <p className="text-gray-600 text-sm mt-1">{step.description}</p>
+                        {activeStep === step.id && (
+                          <div className="mt-2 text-blue-700 text-xs animate-pulse">
+                            {activeTab === 'dns' ? 
+                              (step.id === 1 ? "Checking local cache..." :
+                               step.id === 2 ? "Contacting ISP resolver..." :
+                               step.id === 3 ? "Querying root server..." :
+                               step.id === 4 ? "Getting TLD information..." :
+                               step.id === 5 ? "Fetching authoritative record..." :
+                               "Returning IP to browser...") :
+                              (step.id === 1 ? "Establishing TCP connection..." :
+                               step.id === 2 ? "Sending HTTP request..." :
+                               step.id === 3 ? "Processing on server..." :
+                               step.id === 4 ? "Generating response..." :
+                               step.id === 5 ? "Rendering content..." :
+                               "Closing connection...")
+                            }
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-center mt-8 space-x-4">
+                <button 
+                  onClick={resetAnimation}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm"
+                >
+                  Reset
+                </button>
+                <button 
+                  onClick={playAnimation}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+                >
+                  Play Animation
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Details */}
+          <div className="lg:w-1/2">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full sticky top-4">
+              {activeStep ? (
+                <>
+                  <h3 className="font-bold text-xl text-gray-800 mb-4">
+                    Step {activeStep}: {currentSteps.find(step => step.id === activeStep).title}
+                  </h3>
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-gray-700">
+                      {currentSteps.find(step => step.id === activeStep).details}
+                    </p>
+                  </div>
+                  <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+                    <h4 className="font-semibold text-yellow-800 mb-2">Technical Insight</h4>
+                    <p className="text-yellow-700 text-sm">
+                      {currentSteps.find(step => step.id === activeStep).techNote}
+                    </p>
+                  </div>
+                  <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-600 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">Simple Explanation</h4>
+                    <p className="text-green-700 text-sm">
+                      {currentSteps.find(step => step.id === activeStep).simpleExplanation}
+                    </p>
+                    <h4 className="font-semibold text-green-800 mt-4 mb-2">Real-Life Example</h4>
+                    <p className="text-green-700 text-sm">
+                      {currentSteps.find(step => step.id === activeStep).realLifeExample}
+                    </p>
+                  </div>
+                  {activeStep === currentSteps.length && (
+                    <div className="mt-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+                      <h4 className="font-semibold text-green-800 mb-2">Process Complete</h4>
+                      <p className="text-green-700">
+                        {activeTab === 'dns' ? 
+                          "The domain has been resolved to an IP address and the browser can now establish a connection." :
+                          "The webpage has finished loading and is now interactive."}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="text-5xl mb-4">
+                    {activeTab === 'dns' ? '🌐' : '📡'}
+                  </div>
+                  <h3 className="text-xl font-medium text-gray-500 mb-2">
+                    {activeTab === 'dns' ? 'DNS Resolution Visualizer' : 'HTTP Workflow Visualizer'}
+                  </h3>
+                  <p className="text-gray-400 max-w-md">
+                    {activeTab === 'dns' ? 
+                      "Click on any DNS resolution step or press 'Play Animation' to see how browsers find website IP addresses." :
+                      "Click on any HTTP workflow step or press 'Play Animation' to see how browsers communicate with web servers."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NetworkVisualization;

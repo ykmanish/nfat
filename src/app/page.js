@@ -16,6 +16,26 @@ const MockTest = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [result, setResult] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null); // Track expanded completed section
+  const [showPasswordModal, setShowPasswordModal] = useState(true); // Control password modal visibility
+  const [password, setPassword] = useState(""); // Store password input
+  const [passwordError, setPasswordError] = useState(""); // Store password error message
+
+  // Password validation
+  const handlePasswordSubmit = () => {
+    if (password === "SRIPER") {
+      setShowPasswordModal(false);
+      setPasswordError("");
+    } else {
+      setPasswordError("Incorrect password. Please try again.");
+    }
+  };
+
+  // Handle Enter key press for password submission
+  const handlePasswordKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handlePasswordSubmit();
+    }
+  };
 
   // Group questions by section (domain)
   const groupQuestionsBySection = () => {
@@ -138,7 +158,7 @@ const MockTest = () => {
   };
 
   const handleSubmit = () => {
-    console.log("Submitting test...");
+    // console pari.log("Submitting test...");
     setIsSubmitting(true);
     try {
       const { overallScore, domainPerformance } = calculateScore();
@@ -190,6 +210,41 @@ const MockTest = () => {
     }
   };
 
+  // Password modal
+  if (showPasswordModal) {
+    return (
+      <div className="fixed inset-0 small bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
+            Enter Password
+          </h2>
+          <p className="text-gray-600 text-center mb-6">
+            Please enter the password to access the NFAT Mock Test.
+          </p>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyPress={handlePasswordKeyPress}
+            placeholder="Enter password"
+            className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {passwordError && (
+            <p className="text-red-600 text-sm mb-4">{passwordError}</p>
+          )}
+          <div className="text-center">
+            <button
+              onClick={handlePasswordSubmit}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isTestStarted) {
     return (
       <div className="min-h-screen small bg-[#CDAD68] flex items-center justify-center p-6">
@@ -202,7 +257,7 @@ const MockTest = () => {
               NFAT MBA Cyber Security Mock Test
             </h1>
             <p className="text-lg text-gray-600">
-             Designed for Srishti Meena
+              Designed for Srishti Meena
             </p>
           </div>
 
@@ -425,123 +480,123 @@ const MockTest = () => {
 
       {/* Result Modal */}
       {showResultModal && result && (
-  <div className="fixed inset-0 scrollbar-hide bg-black/60 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-3xl scrollbar-hide p-8 max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-        Test Results
-      </h2>
-      
-      {/* Overall Result */}
-      <div className="grid grid-cols-2 scrollbar-hide gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-medium text-blue-800 mb-1">Score</h3>
-          <p className="text-2xl font-bold">
-            {result.score} <span className="text-lg">/ {result.total}</span>
-          </p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="font-medium text-green-800 mb-1">Percentage</h3>
-          <p className="text-2xl font-bold">
-            {result.percentage}%
-            <span className={`ml-2 text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
-              ({result.passed ? 'Passed' : 'Failed'})
-            </span>
-          </p>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="font-medium text-purple-800 mb-1">Correct Answers</h3>
-          <p className="text-2xl font-bold">{result.correct}</p>
-        </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <h3 className="font-medium text-red-800 mb-1">Incorrect Answers</h3>
-          <p className="text-2xl font-bold">{result.incorrect}</p>
-        </div>
-      </div>
-
-      {/* Domain-wise Performance */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Domain-wise Performance</h3>
-        <div className="space-y-4">
-          {Object.keys(sections).map((domain) => {
-            const domainQuestions = sections[domain];
-            const totalQuestions = domainQuestions.length;
-            const correctAnswers = domainQuestions.filter(
-              ({ index }) => selectedAnswers[index] === questions[index].correctAnswer
-            ).length;
-            const incorrectAnswers = domainQuestions.filter(
-              ({ index }) => selectedAnswers[index] !== null && 
-              selectedAnswers[index] !== questions[index].correctAnswer
-            ).length;
-            const unanswered = totalQuestions - correctAnswers - incorrectAnswers;
-            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-
-            return (
-              <div key={domain} className="border rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-gray-800">{domain}</h4>
-                  <span className={`px-2 py-1 rounded text-sm font-medium ${
-                    percentage >= 60 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {percentage}%
+        <div className="fixed inset-0 scrollbar-hide bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl scrollbar-hide p-8 max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
+              Test Results
+            </h2>
+            
+            {/* Overall Result */}
+            <div className="grid grid-cols-2 scrollbar-hide gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-800 mb-1">Score</h3>
+                <p className="text-2xl font-bold">
+                  {result.score} <span className="text-lg">/ {result.total}</span>
+                </p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-medium text-green-800 mb-1">Percentage</h3>
+                <p className="text-2xl font-bold">
+                  {result.percentage}%
+                  <span className={`ml-2 text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
+                    ({result.passed ? 'Passed' : 'Failed'})
                   </span>
+                </p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-medium text-purple-800 mb-1">Correct Answers</h3>
+                <p className="text-2xl font-bold">{result.correct}</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h3 className="font-medium text-red-800 mb-1">Incorrect Answers</h3>
+                <p className="text-2xl font-bold">{result.incorrect}</p>
+              </div>
+            </div>
+
+            {/* Domain-wise Performance */}
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Domain-wise Performance</h3>
+              <div className="space-y-4">
+                {Object.keys(sections).map((domain) => {
+                  const domainQuestions = sections[domain];
+                  const totalQuestions = domainQuestions.length;
+                  const correctAnswers = domainQuestions.filter(
+                    ({ index }) => selectedAnswers[index] === questions[index].correctAnswer
+                  ).length;
+                  const incorrectAnswers = domainQuestions.filter(
+                    ({ index }) => selectedAnswers[index] !== null && 
+                    selectedAnswers[index] !== questions[index].correctAnswer
+                  ).length;
+                  const unanswered = totalQuestions - correctAnswers - incorrectAnswers;
+                  const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+                  return (
+                    <div key={domain} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium text-gray-800">{domain}</h4>
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          percentage >= 60 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {percentage}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                        <span>Correct: {correctAnswers}</span>
+                        <span>Incorrect: {incorrectAnswers}</span>
+                        <span>Unanswered: {unanswered}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full ${
+                            percentage >= 60 ? 'bg-green-500' : 'bg-red-500'
+                          }`} 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Detailed Breakdown */}
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Detailed Breakdown</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Total Questions</span>
+                  <span className="font-medium">{result.total}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                  <span>Correct: {correctAnswers}</span>
-                  <span>Incorrect: {incorrectAnswers}</span>
-                  <span>Unanswered: {unanswered}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Attempted Questions</span>
+                  <span className="font-medium">{result.correct + result.incorrect}</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      percentage >= 60 ? 'bg-green-500' : 'bg-red-500'
-                    }`} 
-                    style={{ width: `${percentage}%` }}
-                  ></div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Unattempted Questions</span>
+                  <span className="font-medium">{result.total - result.correct - result.incorrect}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Marks Obtained</span>
+                  <span className="font-medium">{result.score}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Negative Marks</span>
+                  <span className="font-medium">-{(result.incorrect * 0.25).toFixed(2)}</span>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
 
-      {/* Detailed Breakdown */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Detailed Breakdown</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Total Questions</span>
-            <span className="font-medium">{result.total}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Attempted Questions</span>
-            <span className="font-medium">{result.correct + result.incorrect}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Unattempted Questions</span>
-            <span className="font-medium">{result.total - result.correct - result.incorrect}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Marks Obtained</span>
-            <span className="font-medium">{result.score}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Negative Marks</span>
-            <span className="font-medium">-{(result.incorrect * 0.25).toFixed(2)}</span>
+            <div className="mt-6 text-center">
+              <button
+                onClick={closeModal}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-6 text-center">
-        <button
-          onClick={closeModal}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
