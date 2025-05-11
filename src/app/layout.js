@@ -20,7 +20,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="small"
       >
         {children}
         {/* <footer className="bg-[#0c0c0c] small text-white py-6 ">
