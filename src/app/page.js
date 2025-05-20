@@ -2,7 +2,7 @@
 // pages/mock-test/index.js
 import { useState, useEffect } from "react";
 import Head from "next/head";
-import { questions } from "./qdata";
+import { questions } from "./qdatathree";
 
 const MockTest = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
