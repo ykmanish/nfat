@@ -94,11 +94,11 @@ const GraphicalModelsVisualization = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-         <h1 className="text-4xl font-bold text-center text-indigo-800 mb-3">
-          Machine Learning Unit Four
-        </h1>
-         <p className="text-xl text-gray-600 text-center mb-10">
-            Designed for Srishti
+         <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
+           Machine Learning - Unit 4
+          </h1>
+          <p className="mt-5 max-w-xl mx-auto text-sm text-gray-500">
+            Specially Designed for Sri
           </p>
         </motion.section>
 
