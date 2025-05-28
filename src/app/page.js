@@ -1,46 +1,55 @@
-"use client";
 // pages/mock-test/index.js
+"use client";
 import { useState, useEffect } from "react";
 import Head from "next/head";
-import { questions } from "./qdatathree";
+import { questions as qdata } from "./qdata";
+import { questions as qdatatwo } from "./qdatatwo";
+import { questions as qdatathree } from "./qdatathree";
+import { questions as qdatafour } from "./qdatafour";
+import { questions as qdatafive } from "./qdatafive";
+
+// Define available question sets
+const questionSets = [
+  { id: "set1", name: "Set 1", questions: qdata },
+  { id: "set2", name: "Set 2", questions: qdatatwo },
+  { id: "set3", name: "Set 3", questions: qdatathree },
+  { id: "set4", name: "Set 4", questions: qdatafour },
+  { id: "set5", name: "Set 5", questions: qdatafive },
+];
 
 const MockTest = () => {
+  const [selectedSet, setSelectedSet] = useState(questionSets[0]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState(
-    Array(questions.length).fill(null)
+    Array(questionSets[0].questions.length).fill(null)
   );
-  const [timeLeft, setTimeLeft] = useState(7200); // 120 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(5400);
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState([]);
   const [showResultModal, setShowResultModal] = useState(false);
   const [result, setResult] = useState(null);
-  const [expandedSection, setExpandedSection] = useState(null); // Track expanded completed section
-  const [showPasswordModal, setShowPasswordModal] = useState(true); // Control password modal visibility
-  const [password, setPassword] = useState(""); // Store password input
-  const [passwordError, setPasswordError] = useState(""); // Store password error message
+  const [expandedSection, setExpandedSection] = useState(null);
+  const [isExplanationVisible, setIsExplanationVisible] = useState(false);
 
-  // Password validation
-  const handlePasswordSubmit = () => {
-    if (password === "SRIPER") {
-      setShowPasswordModal(false);
-      setPasswordError("");
-    } else {
-      setPasswordError("Incorrect password. Please try again.");
-    }
-  };
+  // Update selectedAnswers and reset explanation visibility when question set changes
+  useEffect(() => {
+    setSelectedAnswers(Array(selectedSet.questions.length).fill(null));
+    setFlaggedQuestions([]);
+    setCurrentQuestionIndex(0);
+    setExpandedSection(null);
+    setIsExplanationVisible(false);
+  }, [selectedSet]);
 
-  // Handle Enter key press for password submission
-  const handlePasswordKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handlePasswordSubmit();
-    }
-  };
+  // Reset explanation visibility when navigating to a new question
+  useEffect(() => {
+    setIsExplanationVisible(false);
+  }, [currentQuestionIndex]);
 
   // Group questions by section (domain)
   const groupQuestionsBySection = () => {
     const sections = {};
-    questions.forEach((question, index) => {
+    selectedSet.questions.forEach((question, index) => {
       const domain = question.domain || "Uncategorized";
       if (!sections[domain]) {
         sections[domain] = [];
@@ -52,17 +61,16 @@ const MockTest = () => {
 
   const sections = groupQuestionsBySection();
 
-  // Check if a section is completed (all questions answered)
   const isSectionCompleted = (sectionQuestions) => {
     return sectionQuestions.every(
       ({ index }) => selectedAnswers[index] !== null
     );
   };
 
-  // Get the current section based on currentQuestionIndex
-  const currentSection = questions[currentQuestionIndex].domain || "Uncategorized";
+  const currentSection =
+    selectedSet.questions[currentQuestionIndex].domain || "Uncategorized";
 
-  // Timer effect with auto-submit on time expiry
+  // Timer effect with auto-submit
   useEffect(() => {
     if (!isTestStarted || timeLeft <= 0) {
       if (timeLeft <= 0 && isTestStarted && !isSubmitting) {
@@ -79,7 +87,6 @@ const MockTest = () => {
     return () => clearInterval(timer);
   }, [isTestStarted, timeLeft, isSubmitting]);
 
-  // Format time as HH:MM:SS
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -100,8 +107,8 @@ const MockTest = () => {
   };
 
   const handleQuestionNavigation = (index) => {
-    const targetSection = questions[index].domain || "Uncategorized";
-    // Reset expandedSection unless navigating within the expanded section
+    const targetSection =
+      selectedSet.questions[index].domain || "Uncategorized";
     if (expandedSection && targetSection !== expandedSection) {
       setExpandedSection(null);
     }
@@ -120,7 +127,6 @@ const MockTest = () => {
     let overallScore = 0;
     const domainPerformance = {};
 
-    // Initialize domain performance
     Object.keys(sections).forEach((domain) => {
       domainPerformance[domain] = {
         total: sections[domain].length,
@@ -130,8 +136,7 @@ const MockTest = () => {
       };
     });
 
-    // Calculate scores
-    questions.forEach((question, index) => {
+    selectedSet.questions.forEach((question, index) => {
       const domain = question.domain || "Uncategorized";
       if (selectedAnswers[index] === question.correctAnswer) {
         overallScore += 1;
@@ -145,7 +150,6 @@ const MockTest = () => {
       }
     });
 
-    // Calculate percentages for each domain
     Object.keys(domainPerformance).forEach((domain) => {
       const { correct, total } = domainPerformance[domain];
       domainPerformance[domain].percentage = ((correct / total) * 100).toFixed(2);
@@ -158,18 +162,17 @@ const MockTest = () => {
   };
 
   const handleSubmit = () => {
-    // console pari.log("Submitting test...");
     setIsSubmitting(true);
     try {
       const { overallScore, domainPerformance } = calculateScore();
-      const percentage = (overallScore / questions.length) * 100;
+      const percentage = (overallScore / selectedSet.questions.length) * 100;
       const passed = percentage >= 60;
 
       setResult({
         score: overallScore.toFixed(2),
-        total: questions.length,
+        total: selectedSet.questions.length,
         correct: Math.round(overallScore),
-        incorrect: questions.length - Math.round(overallScore),
+        incorrect: selectedSet.questions.length - Math.round(overallScore),
         percentage: percentage.toFixed(2),
         passed: passed,
         domains: domainPerformance,
@@ -183,67 +186,34 @@ const MockTest = () => {
   };
 
   const startTest = () => {
-    console.log("Starting test...");
+    console.log(`Starting test with ${selectedSet.name}...`);
     setIsTestStarted(true);
   };
 
   const closeModal = () => {
     setShowResultModal(false);
     setCurrentQuestionIndex(0);
-    setSelectedAnswers(Array(questions.length).fill(null));
-    setTimeLeft(7200);
+    setSelectedAnswers(Array(selectedSet.questions.length).fill(null));
+    setTimeLeft(5400);
     setIsTestStarted(false);
     setFlaggedQuestions([]);
     setResult(null);
     setExpandedSection(null);
+    setIsExplanationVisible(false);
   };
 
-  // Handle clicking a completed section card
   const handleSectionCardClick = (domain) => {
     if (expandedSection === domain) {
-      // Collapse if already expanded
       setExpandedSection(null);
     } else {
-      // Expand and navigate to the first question in the section
       setExpandedSection(domain);
       handleQuestionNavigation(sections[domain][0].index);
     }
   };
 
-  // Password modal
-  if (showPasswordModal) {
-    return (
-      <div className="fixed inset-0 small bg-black/60 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-lg w-full">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-            Enter Password
-          </h2>
-          <p className="text-gray-600 text-center mb-6">
-            Please enter the password to access the NFAT Mock Test.
-          </p>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={handlePasswordKeyPress}
-            placeholder="Enter password"
-            className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {passwordError && (
-            <p className="text-red-600 text-sm mb-4">{passwordError}</p>
-          )}
-          <div className="text-center">
-            <button
-              onClick={handlePasswordSubmit}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Submit
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const toggleExplanationVisibility = () => {
+    setIsExplanationVisible((prev) => !prev);
+  };
 
   if (!isTestStarted) {
     return (
@@ -259,6 +229,29 @@ const MockTest = () => {
             <p className="text-lg text-gray-600">
               Designed for Srishti Meena
             </p>
+          </div>
+
+          {/* Question Set Selector */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              Select Question Set
+            </h2>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {questionSets.map((set) => (
+                <button
+                  key={set.id}
+                  onClick={() => setSelectedSet(set)}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105
+                    ${
+                      selectedSet.id === set.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                >
+                  {set.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="mb-8">
@@ -283,7 +276,8 @@ const MockTest = () => {
                   </svg>
                 </div>
                 <p className="ml-3 text-gray-700">
-                  <span className="font-medium">Total Questions:</span> 100
+                  <span className="font-medium">Total Questions:</span>{" "}
+                  {selectedSet.questions.length}
                 </p>
               </div>
               <div className="flex items-start">
@@ -303,7 +297,7 @@ const MockTest = () => {
                   </svg>
                 </div>
                 <p className="ml-3 text-gray-700">
-                  <span className="font-medium">Time Limit:</span> 120 minutes
+                  <span className="font-medium">Time Limit:</span> 90 minutes
                 </p>
               </div>
               <div className="flex items-start">
@@ -344,8 +338,8 @@ const MockTest = () => {
                   </svg>
                 </div>
                 <p className="ml-3 text-gray-700">
-                  <span className="font-medium">Passing Score:</span> 60% (60
-                  correct answers)
+                  <span className="font-medium">Passing Score:</span> 60% (
+                  {Math.ceil(selectedSet.questions.length * 0.6)} correct answers)
                 </p>
               </div>
             </div>
@@ -382,10 +376,19 @@ const MockTest = () => {
         <title>NFAT Mock Test - Question {currentQuestionIndex + 1}</title>
       </Head>
 
+      {/* Warning Strip */}
+      <div className="bg-red-600 text-white text-center py-2">
+        <p className="font-medium">
+          Warning: Do not refresh the page. Your progress will be lost if you do.
+        </p>
+      </div>
+
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">NFAT Mock Test</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            NFAT Mock Test - {selectedSet.name}
+          </h1>
           <div className="flex items-center space-x-4">
             <div className="flex items-center bg-blue-100 px-3 py-1 rounded-full">
               <svg
@@ -472,7 +475,7 @@ const MockTest = () => {
           {allQuestionsAnswered()
             ? "All questions answered - Ready to submit!"
             : `${
-                questions.length -
+                selectedSet.questions.length -
                 selectedAnswers.filter((a) => a !== null).length
               } questions remaining`}
         </p>
@@ -483,9 +486,9 @@ const MockTest = () => {
         <div className="fixed inset-0 scrollbar-hide bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl scrollbar-hide p-8 max-w-7xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-              Test Results
+              Test Results - {selectedSet.name}
             </h2>
-            
+
             {/* Overall Result */}
             <div className="grid grid-cols-2 scrollbar-hide gap-4 mb-6">
               <div className="bg-blue-50 p-4 rounded-lg">
@@ -498,45 +501,66 @@ const MockTest = () => {
                 <h3 className="font-medium text-green-800 mb-1">Percentage</h3>
                 <p className="text-2xl font-bold">
                   {result.percentage}%
-                  <span className={`ml-2 text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
-                    ({result.passed ? 'Passed' : 'Failed'})
+                  <span
+                    className={`ml-2 text-lg ${
+                      result.passed ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    ({result.passed ? "Passed" : "Failed"})
                   </span>
                 </p>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-medium text-purple-800 mb-1">Correct Answers</h3>
+                <h3 className="font-medium text-purple-800 mb-1">
+                  Correct Answers
+                </h3>
                 <p className="text-2xl font-bold">{result.correct}</p>
               </div>
               <div className="bg-red-50 p-4 rounded-lg">
-                <h3 className="font-medium text-red-800 mb-1">Incorrect Answers</h3>
+                <h3 className="font-medium text-red-800 mb-1">
+                  Incorrect Answers
+                </h3>
                 <p className="text-2xl font-bold">{result.incorrect}</p>
               </div>
             </div>
 
             {/* Domain-wise Performance */}
             <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Domain-wise Performance</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                Domain-wise Performance
+              </h3>
               <div className="space-y-4">
                 {Object.keys(sections).map((domain) => {
                   const domainQuestions = sections[domain];
                   const totalQuestions = domainQuestions.length;
                   const correctAnswers = domainQuestions.filter(
-                    ({ index }) => selectedAnswers[index] === questions[index].correctAnswer
+                    ({ index }) =>
+                      selectedAnswers[index] ===
+                      selectedSet.questions[index].correctAnswer
                   ).length;
                   const incorrectAnswers = domainQuestions.filter(
-                    ({ index }) => selectedAnswers[index] !== null && 
-                    selectedAnswers[index] !== questions[index].correctAnswer
+                    ({ index }) =>
+                      selectedAnswers[index] !== null &&
+                      selectedAnswers[index] !==
+                        selectedSet.questions[index].correctAnswer
                   ).length;
-                  const unanswered = totalQuestions - correctAnswers - incorrectAnswers;
-                  const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+                  const unanswered =
+                    totalQuestions - correctAnswers - incorrectAnswers;
+                  const percentage = Math.round(
+                    (correctAnswers / totalQuestions) * 100
+                  );
 
                   return (
                     <div key={domain} className="border rounded-lg p-4">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="font-medium text-gray-800">{domain}</h4>
-                        <span className={`px-2 py-1 rounded text-sm font-medium ${
-                          percentage >= 60 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded text-sm font-medium ${
+                            percentage >= 60
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
                           {percentage}%
                         </span>
                       </div>
@@ -546,10 +570,10 @@ const MockTest = () => {
                         <span>Unanswered: {unanswered}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className={`h-2 rounded-full ${
-                            percentage >= 60 ? 'bg-green-500' : 'bg-red-500'
-                          }`} 
+                            percentage >= 60 ? "bg-green-500" : "bg-red-500"
+                          }`}
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
@@ -561,7 +585,9 @@ const MockTest = () => {
 
             {/* Detailed Breakdown */}
             <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Detailed Breakdown</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                Detailed Breakdown
+              </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Total Questions</span>
@@ -569,11 +595,15 @@ const MockTest = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Attempted Questions</span>
-                  <span className="font-medium">{result.correct + result.incorrect}</span>
+                  <span className="font-medium">
+                    {result.correct + result.incorrect}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Unattempted Questions</span>
-                  <span className="font-medium">{result.total - result.correct - result.incorrect}</span>
+                  <span className="font-medium">
+                    {result.total - result.correct - result.incorrect}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Marks Obtained</span>
@@ -581,7 +611,9 @@ const MockTest = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Negative Marks</span>
-                  <span className="font-medium">-{(result.incorrect * 0.25).toFixed(2)}</span>
+                  <span className="font-medium">
+                    -{(result.incorrect * 0.25).toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -612,7 +644,6 @@ const MockTest = () => {
                 const isExpanded = expandedSection === domain;
 
                 if (isCompleted && !isExpanded) {
-                  // Render a card for completed, non-expanded sections
                   return (
                     <div
                       key={domain}
@@ -625,7 +656,6 @@ const MockTest = () => {
                     </div>
                   );
                 } else if (isCurrentSection || isExpanded) {
-                  // Render question blocks for current section or expanded completed section
                   return (
                     <div key={domain} className="mb-4">
                       <h3
@@ -677,7 +707,7 @@ const MockTest = () => {
                     </div>
                   );
                 }
-                return null; // Hide non-current, non-completed, non-expanded sections
+                return null;
               })}
             </div>
             <div className="mt-6 space-y-3">
@@ -704,14 +734,16 @@ const MockTest = () => {
           <div className="lg:w-2/4 bg-white p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                {questions[currentQuestionIndex].domain}
+                {selectedSet.questions[currentQuestionIndex].domain}
               </span>
               <button
                 onClick={() =>
-                  toggleFlagQuestion(questions[currentQuestionIndex].id)
+                  toggleFlagQuestion(selectedSet.questions[currentQuestionIndex].id)
                 }
                 className={`flex items-center text-sm ${
-                  flaggedQuestions.includes(questions[currentQuestionIndex].id)
+                  flaggedQuestions.includes(
+                    selectedSet.questions[currentQuestionIndex].id
+                  )
                     ? "text-yellow-600"
                     : "text-gray-500"
                 } hover:text-yellow-600`}
@@ -730,7 +762,9 @@ const MockTest = () => {
                     d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                   />
                 </svg>
-                {flaggedQuestions.includes(questions[currentQuestionIndex].id)
+                {flaggedQuestions.includes(
+                  selectedSet.questions[currentQuestionIndex].id
+                )
                   ? "Flagged"
                   : "Flag"}
               </button>
@@ -741,51 +775,53 @@ const MockTest = () => {
                 Question {currentQuestionIndex + 1}
               </h2>
               <p className="text-gray-700">
-                {questions[currentQuestionIndex].question}
+                {selectedSet.questions[currentQuestionIndex].question}
               </p>
             </div>
 
             <div className="space-y-3">
-              {questions[currentQuestionIndex].options.map((option, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleAnswerSelect(index)}
-                  className={`p-4 border rounded-lg cursor-pointer transition
+              {selectedSet.questions[currentQuestionIndex].options.map(
+                (option, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleAnswerSelect(index)}
+                    className={`p-4 border rounded-lg cursor-pointer transition
                     ${
                       selectedAnswers[currentQuestionIndex] === index
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
                     }
                   `}
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded-full border mr-3 flex-shrink-0 flex items-center justify-center
+                  >
+                    <div className="flex items-center">
+                      <div
+                        className={`w-5 h-5 rounded-full border mr-3 flex-shrink-0 flex items-center justify-center
                       ${
                         selectedAnswers[currentQuestionIndex] === index
                           ? "border-blue-500 bg-blue-500"
                           : "border-gray-300"
                       }
                     `}
-                    >
-                      {selectedAnswers[currentQuestionIndex] === index && (
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
+                      >
+                        {selectedAnswers[currentQuestionIndex] === index && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="text-gray-700">{option}</span>
                     </div>
-                    <span className="text-gray-700">{option}</span>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
 
             <div className="mt-8 flex justify-between">
@@ -813,10 +849,10 @@ const MockTest = () => {
               <button
                 onClick={() =>
                   setCurrentQuestionIndex((prev) =>
-                    Math.min(questions.length - 1, prev + 1)
+                    Math.min(selectedSet.questions.length - 1, prev + 1)
                   )
                 }
-                disabled={currentQuestionIndex === questions.length - 1}
+                disabled={currentQuestionIndex === selectedSet.questions.length - 1}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition flex items-center disabled:opacity-50"
               >
                 Next
@@ -849,12 +885,19 @@ const MockTest = () => {
                   : "You have not answered this question yet"}
               </p>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h3 className="font-medium text-yellow-800 mb-2">Explanation</h3>
-              <p className="text-gray-700">
-                {questions[currentQuestionIndex].explanation ||
-                  "Explanation will appear here after you submit the test."}
-              </p>
+            <div
+              className="bg-yellow-50 p-4 rounded-lg cursor-pointer hover:bg-yellow-100 transition"
+              onClick={toggleExplanationVisibility}
+            >
+              <h3 className="font-medium text-yellow-800 mb-2">
+                {isExplanationVisible ? "Hide Hint" : "Show Hint"}
+              </h3>
+              {isExplanationVisible && (
+                <p className="text-gray-700">
+                  {selectedSet.questions[currentQuestionIndex].explanation ||
+                    "Explanation will appear here after you submit the test."}
+                </p>
+              )}
             </div>
           </div>
         </div>
