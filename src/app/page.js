@@ -7,6 +7,10 @@ import { questions as qdatatwo } from "./qdatatwo";
 import { questions as qdatathree } from "./qdatathree";
 import { questions as qdatafour } from "./qdatafour";
 import { questions as qdatafive } from "./qdatafive";
+import { questions as qdatasix } from "./qdatasix";
+import { questions as qdataseven } from "./fullforms";
+
+
 
 // Define available question sets
 const questionSets = [
@@ -15,6 +19,8 @@ const questionSets = [
   { id: "set3", name: "Set 3", questions: qdatathree },
   { id: "set4", name: "Set 4", questions: qdatafour },
   { id: "set5", name: "Set 5", questions: qdatafive },
+  { id: "set6", name: "Set 6", questions: qdatasix },
+  { id: "set7", name: "Full Forms", questions: qdataseven },
 ];
 
 const MockTest = () => {
@@ -23,6 +29,7 @@ const MockTest = () => {
   const [selectedAnswers, setSelectedAnswers] = useState(
     Array(questionSets[0].questions.length).fill(null)
   );
+  const [skippedQuestions, setSkippedQuestions] = useState([]);
   const [timeLeft, setTimeLeft] = useState(5400);
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,14 +38,61 @@ const MockTest = () => {
   const [result, setResult] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null);
   const [isExplanationVisible, setIsExplanationVisible] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Update selectedAnswers and reset explanation visibility when question set changes
+  // Load progress from localStorage on mount
+  useEffect(() => {
+    const savedProgress = localStorage.getItem(`mockTestProgress_${selectedSet.id}`);
+    if (savedProgress) {
+      const {
+        selectedAnswers,
+        skippedQuestions,
+        flaggedQuestions,
+        timeLeft,
+        currentQuestionIndex,
+      } = JSON.parse(savedProgress);
+      setSelectedAnswers(selectedAnswers);
+      setSkippedQuestions(skippedQuestions);
+      setFlaggedQuestions(flaggedQuestions);
+      setTimeLeft(timeLeft);
+      setCurrentQuestionIndex(currentQuestionIndex);
+      setIsTestStarted(true);
+    }
+  }, [selectedSet]);
+
+  // Save progress to localStorage on state changes
+  useEffect(() => {
+    if (isTestStarted) {
+      localStorage.setItem(
+        `mockTestProgress_${selectedSet.id}`,
+        JSON.stringify({
+          selectedAnswers,
+          skippedQuestions,
+          flaggedQuestions,
+          timeLeft,
+          currentQuestionIndex,
+        })
+      );
+    }
+  }, [
+    selectedAnswers,
+    skippedQuestions,
+    flaggedQuestions,
+    timeLeft,
+    currentQuestionIndex,
+    isTestStarted,
+    selectedSet,
+  ]);
+
+  // Update selectedAnswers and reset states when question set changes
   useEffect(() => {
     setSelectedAnswers(Array(selectedSet.questions.length).fill(null));
+    setSkippedQuestions([]);
     setFlaggedQuestions([]);
     setCurrentQuestionIndex(0);
     setExpandedSection(null);
     setIsExplanationVisible(false);
+    localStorage.removeItem(`mockTestProgress_${selectedSet.id}`);
   }, [selectedSet]);
 
   // Reset explanation visibility when navigating to a new question
@@ -63,7 +117,7 @@ const MockTest = () => {
 
   const isSectionCompleted = (sectionQuestions) => {
     return sectionQuestions.every(
-      ({ index }) => selectedAnswers[index] !== null
+      ({ index }) => selectedAnswers[index] !== null || skippedQuestions.includes(index)
     );
   };
 
@@ -100,10 +154,31 @@ const MockTest = () => {
     const newAnswers = [...selectedAnswers];
     newAnswers[currentQuestionIndex] = optionIndex;
     setSelectedAnswers(newAnswers);
+    // Remove from skipped if answered
+    if (skippedQuestions.includes(currentQuestionIndex)) {
+      setSkippedQuestions(skippedQuestions.filter((idx) => idx !== currentQuestionIndex));
+    }
   };
 
-  const allQuestionsAnswered = () => {
-    return selectedAnswers.every((answer) => answer !== null);
+  const handleSkipQuestion = () => {
+    if (!skippedQuestions.includes(currentQuestionIndex)) {
+      setSkippedQuestions([...skippedQuestions, currentQuestionIndex]);
+      setSelectedAnswers((prev) => {
+        const newAnswers = [...prev];
+        newAnswers[currentQuestionIndex] = null;
+        return newAnswers;
+      });
+      // Move to next question
+      if (currentQuestionIndex < selectedSet.questions.length - 1) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+      }
+    }
+  };
+
+  const allQuestionsAnsweredOrSkipped = () => {
+    return selectedSet.questions.every(
+      (_, index) => selectedAnswers[index] !== null || skippedQuestions.includes(index)
+    );
   };
 
   const handleQuestionNavigation = (index) => {
@@ -132,27 +207,35 @@ const MockTest = () => {
         total: sections[domain].length,
         correct: 0,
         incorrect: 0,
+        skipped: 0,
+        unanswered: 0,
         percentage: 0,
       };
     });
 
     selectedSet.questions.forEach((question, index) => {
       const domain = question.domain || "Uncategorized";
-      if (selectedAnswers[index] === question.correctAnswer) {
+      if (skippedQuestions.includes(index)) {
+        overallScore -= 1; // Deduct 1 mark for skipped questions
+        domainPerformance[domain].skipped += 1;
+      } else if (selectedAnswers[index] === question.correctAnswer) {
         overallScore += 1;
         domainPerformance[domain].correct += 1;
       } else if (
         selectedAnswers[index] !== null &&
         selectedAnswers[index] !== question.correctAnswer
       ) {
-        overallScore -= 0.25;
+        overallScore -= 0.25; // Deduct 0.25 for incorrect answers
         domainPerformance[domain].incorrect += 1;
+      } else {
+        overallScore -= 1; // Deduct 1 mark for unanswered questions
+        domainPerformance[domain].unanswered += 1;
       }
     });
 
     Object.keys(domainPerformance).forEach((domain) => {
       const { correct, total } = domainPerformance[domain];
-      domainPerformance[domain].percentage = ((correct / total) * 100).toFixed(2);
+      domainPerformance[domain].percentage = total > 0 ? ((correct / total) * 100).toFixed(2) : 0;
     });
 
     return {
@@ -171,13 +254,22 @@ const MockTest = () => {
       setResult({
         score: overallScore.toFixed(2),
         total: selectedSet.questions.length,
-        correct: Math.round(overallScore),
-        incorrect: selectedSet.questions.length - Math.round(overallScore),
+        correct: selectedSet.questions.filter(
+          (q, i) => selectedAnswers[i] === q.correctAnswer
+        ).length,
+        incorrect: selectedSet.questions.filter(
+          (q, i) => selectedAnswers[i] !== null && selectedAnswers[i] !== q.correctAnswer
+        ).length,
+        skipped: skippedQuestions.length,
+        unanswered: selectedSet.questions.filter(
+          (q, i) => selectedAnswers[i] === null && !skippedQuestions.includes(i)
+        ).length,
         percentage: percentage.toFixed(2),
         passed: passed,
         domains: domainPerformance,
       });
       setShowResultModal(true);
+      localStorage.removeItem(`mockTestProgress_${selectedSet.id}`);
     } catch (error) {
       console.error("Error during submission:", error);
     } finally {
@@ -194,6 +286,7 @@ const MockTest = () => {
     setShowResultModal(false);
     setCurrentQuestionIndex(0);
     setSelectedAnswers(Array(selectedSet.questions.length).fill(null));
+    setSkippedQuestions([]);
     setTimeLeft(5400);
     setIsTestStarted(false);
     setFlaggedQuestions([]);
@@ -214,6 +307,22 @@ const MockTest = () => {
   const toggleExplanationVisibility = () => {
     setIsExplanationVisible((prev) => !prev);
   };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft" && currentQuestionIndex > 0) {
+        setCurrentQuestionIndex((prev) => prev - 1);
+      } else if (
+        e.key === "ArrowRight" &&
+        currentQuestionIndex < selectedSet.questions.length - 1
+      ) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentQuestionIndex, selectedSet.questions.length]);
 
   if (!isTestStarted) {
     return (
@@ -318,7 +427,7 @@ const MockTest = () => {
                 </div>
                 <p className="ml-3 text-gray-700">
                   <span className="font-medium">Marking Scheme:</span> +1 for
-                  correct answer, -0.25 for incorrect answer
+                  correct answer, -0.25 for incorrect answer, -1 for skipped or unanswered
                 </p>
               </div>
               <div className="flex items-start">
@@ -379,7 +488,7 @@ const MockTest = () => {
       {/* Warning Strip */}
       <div className="bg-red-600 text-white text-center py-2">
         <p className="font-medium">
-          Warning: Do not refresh the page. Your progress will be lost if you do.
+          Warning: Do not refresh the page. Your progress is autosaved.
         </p>
       </div>
 
@@ -409,77 +518,120 @@ const MockTest = () => {
                 {formatTime(timeLeft)}
               </span>
             </div>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className={`px-4 py-2 rounded-md transition flex items-center 
-                ${
-                  allQuestionsAnswered()
-                    ? "bg-green-600 text-white hover:bg-green-700"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }
-                ${isSubmitting ? "opacity-50" : ""}
-              `}
-            >
-              {isSubmitting ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
+            {allQuestionsAnsweredOrSkipped() && (
+              <button
+                onClick={() => setShowConfirmModal(true)}
+                disabled={isSubmitting}
+                className={`px-4 py-2 rounded-md transition flex items-center 
+                  ${
+                    allQuestionsAnsweredOrSkipped()
+                      ? "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }
+                  ${isSubmitting ? "opacity-50" : ""}
+                `}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 mr-1"
+                      viewBox="0 0 20 20"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Submit Test
-                </>
-              )}
-            </button>
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Submit Test
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>
-      <div
-        className={`max-w-7xl mx-auto px-4 py-2 ${
-          allQuestionsAnswered() ? "bg-green-100" : "bg-yellow-100"
-        }`}
-      >
-        <p className="text-center text-sm font-medium">
-          {allQuestionsAnswered()
-            ? "All questions answered - Ready to submit!"
+
+      {/* Progress Bar */}
+      <div className="max-w-7xl mx-auto px-4 py-2">
+        <div className="w-full bg-gray-200 rounded-full h-4">
+          <div
+            className="bg-blue-500 h-4 rounded-full"
+            style={{
+              width: `${
+                ((selectedAnswers.filter((a) => a !== null).length + skippedQuestions.length) /
+                  selectedSet.questions.length) * 100
+              }%`,
+            }}
+          ></div>
+        </div>
+        <p className="text-center text-sm font-medium mt-2">
+          {allQuestionsAnsweredOrSkipped()
+            ? "All questions answered or skipped - Ready to submit!"
             : `${
                 selectedSet.questions.length -
-                selectedAnswers.filter((a) => a !== null).length
+                selectedAnswers.filter((a) => a !== null).length -
+                skippedQuestions.length
               } questions remaining`}
         </p>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              Confirm Submission
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to submit the test? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  handleSubmit();
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Result Modal */}
       {showResultModal && result && (
@@ -490,7 +642,7 @@ const MockTest = () => {
             </h2>
 
             {/* Overall Result */}
-            <div className="grid grid-cols-2 scrollbar-hide gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-medium text-blue-800 mb-1">Score</h3>
                 <p className="text-2xl font-bold">
@@ -522,6 +674,18 @@ const MockTest = () => {
                 </h3>
                 <p className="text-2xl font-bold">{result.incorrect}</p>
               </div>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h3 className="font-medium text-yellow-800 mb-1">
+                  Skipped Questions
+                </h3>
+                <p className="text-2xl font-bold">{result.skipped}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-800 mb-1">
+                  Unanswered Questions
+                </h3>
+                <p className="text-2xl font-bold">{result.unanswered}</p>
+              </div>
             </div>
 
             {/* Domain-wise Performance */}
@@ -544,11 +708,16 @@ const MockTest = () => {
                       selectedAnswers[index] !==
                         selectedSet.questions[index].correctAnswer
                   ).length;
-                  const unanswered =
-                    totalQuestions - correctAnswers - incorrectAnswers;
-                  const percentage = Math.round(
-                    (correctAnswers / totalQuestions) * 100
-                  );
+                  const skipped = domainQuestions.filter(({ index }) =>
+                    skippedQuestions.includes(index)
+                  ).length;
+                  const unanswered = domainQuestions.filter(
+                    ({ index }) =>
+                      selectedAnswers[index] === null && !skippedQuestions.includes(index)
+                  ).length;
+                  const percentage = totalQuestions > 0
+                    ? Math.round((correctAnswers / totalQuestions) * 100)
+                    : 0;
 
                   return (
                     <div key={domain} className="border rounded-lg p-4">
@@ -567,6 +736,7 @@ const MockTest = () => {
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                         <span>Correct: {correctAnswers}</span>
                         <span>Incorrect: {incorrectAnswers}</span>
+                        <span>Skipped: {skipped}</span>
                         <span>Unanswered: {unanswered}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
@@ -600,10 +770,12 @@ const MockTest = () => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Unattempted Questions</span>
-                  <span className="font-medium">
-                    {result.total - result.correct - result.incorrect}
-                  </span>
+                  <span className="text-gray-700">Skipped Questions</span>
+                  <span className="font-medium">{result.skipped}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Unanswered Questions</span>
+                  <span className="font-medium">{result.unanswered}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Marks Obtained</span>
@@ -612,7 +784,7 @@ const MockTest = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Negative Marks</span>
                   <span className="font-medium">
-                    -{(result.incorrect * 0.25).toFixed(2)}
+                    -{(result.incorrect * 0.25 + (result.skipped + result.unanswered) * 1).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -633,7 +805,7 @@ const MockTest = () => {
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Question Navigation Panel */}
-          <div className="lg:w-1/4 bg-white p-4 rounded-lg shadow-sm">
+          <div className="lg:w-1/4 bg-white h-[70svh] overflow-y-auto p-4 rounded-lg shadow-sm">
             <h2 className="font-semibold text-lg mb-4 text-gray-800">
               Question Navigation
             </h2>
@@ -683,17 +855,13 @@ const MockTest = () => {
                                 ${
                                   selectedAnswers[index] !== null
                                     ? "bg-green-100 text-green-800"
-                                    : ""
+                                    : skippedQuestions.includes(index)
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-gray-100 text-gray-800"
                                 }
                                 ${
                                   flaggedQuestions.includes(question.id)
                                     ? "bg-yellow-100 text-yellow-800"
-                                    : ""
-                                }
-                                ${
-                                  currentQuestionIndex !== index &&
-                                  selectedAnswers[index] === null
-                                    ? "bg-gray-100 text-gray-800"
                                     : ""
                                 }
                                 hover:bg-blue-100 hover:text-blue-800 transition
@@ -718,6 +886,10 @@ const MockTest = () => {
               <div className="flex items-center">
                 <div className="w-4 h-4 rounded bg-green-100 mr-2"></div>
                 <span className="text-sm text-gray-600">Answered</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 rounded bg-red-100 mr-2"></div>
+                <span className="text-sm text-gray-600">Skipped</span>
               </div>
               <div className="flex items-center">
                 <div className="w-4 h-4 rounded bg-yellow-100 mr-2"></div>
@@ -766,7 +938,8 @@ const MockTest = () => {
                   selectedSet.questions[currentQuestionIndex].id
                 )
                   ? "Flagged"
-                  : "Flag"}
+                  : "Flag"
+                }
               </button>
             </div>
 
@@ -790,8 +963,7 @@ const MockTest = () => {
                       selectedAnswers[currentQuestionIndex] === index
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
-                    }
-                  `}
+                    }`}
                   >
                     <div className="flex items-center">
                       <div
@@ -800,8 +972,7 @@ const MockTest = () => {
                         selectedAnswers[currentQuestionIndex] === index
                           ? "border-blue-500 bg-blue-500"
                           : "border-gray-300"
-                      }
-                    `}
+                      }`}
                       >
                         {selectedAnswers[currentQuestionIndex] === index && (
                           <svg
@@ -847,6 +1018,26 @@ const MockTest = () => {
                 Previous
               </button>
               <button
+                onClick={handleSkipQuestion}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition flex items-center"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+                Skip
+              </button>
+              <button
                 onClick={() =>
                   setCurrentQuestionIndex((prev) =>
                     Math.min(selectedSet.questions.length - 1, prev + 1)
@@ -880,13 +1071,16 @@ const MockTest = () => {
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
               <h3 className="font-medium text-blue-800 mb-2">Current Status</h3>
               <p className="text-gray-700">
-                {selectedAnswers[currentQuestionIndex] !== null
+                {skippedQuestions.includes(currentQuestionIndex)
+                  ? "This question was skipped (-1 mark)"
+                  : selectedAnswers[currentQuestionIndex] !== null
                   ? "You have answered this question"
-                  : "You have not answered this question yet"}
+                    : "You have not answered this question (-1 mark)"
+                }
               </p>
             </div>
             <div
-              className="bg-yellow-50 p-4 rounded-lg cursor-pointer hover:bg-yellow-100 transition"
+              className="text-bg-yellow-50 p-4 rounded bg-yellow-100 cursor-pointer hover:bg-yellow-100 transition"
               onClick={toggleExplanationVisibility}
             >
               <h3 className="font-medium text-yellow-800 mb-2">
@@ -894,8 +1088,10 @@ const MockTest = () => {
               </h3>
               {isExplanationVisible && (
                 <p className="text-gray-700">
-                  {selectedSet.questions[currentQuestionIndex].explanation ||
+                  <p className="text-gray-600">
+                    {selectedSet.questions[currentQuestionIndex].explanation ||
                     "Explanation will appear here after you submit the test."}
+                  </p>
                 </p>
               )}
             </div>
@@ -905,5 +1101,4 @@ const MockTest = () => {
     </div>
   );
 };
-
 export default MockTest;
