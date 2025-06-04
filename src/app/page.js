@@ -249,7 +249,7 @@ const MockTest = () => {
     try {
       const { overallScore, domainPerformance } = calculateScore();
       const percentage = (overallScore / selectedSet.questions.length) * 100;
-      const passed = percentage >= 60;
+      const passed = percentage >= 75;
 
       setResult({
         score: overallScore.toFixed(2),
