@@ -249,7 +249,7 @@ const MockTest = () => {
     try {
       const { overallScore, domainPerformance } = calculateScore();
       const percentage = (overallScore / selectedSet.questions.length) * 100;
-      const passed = percentage >= 75;
+      const passed = percentage >= 80;
 
       setResult({
         score: overallScore.toFixed(2),
@@ -447,7 +447,7 @@ const MockTest = () => {
                   </svg>
                 </div>
                 <p className="ml-3 text-gray-700">
-                  <span className="font-medium">Passing Score:</span> 60% (
+                  <span className="font-medium">Passing Score:</span> 80% (
                   {Math.ceil(selectedSet.questions.length * 0.6)} correct answers)
                 </p>
               </div>
