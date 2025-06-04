@@ -448,7 +448,7 @@ const MockTest = () => {
                 </div>
                 <p className="ml-3 text-gray-700">
                   <span className="font-medium">Passing Score:</span> 80% (
-                  {Math.ceil(selectedSet.questions.length * 0.6)} correct answers)
+                  {Math.ceil(selectedSet.questions.length * 0.8)} correct answers)
                 </p>
               </div>
             </div>
